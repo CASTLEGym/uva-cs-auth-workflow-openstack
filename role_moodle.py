@@ -13,11 +13,14 @@ def setup_moodle_idp (obj):
     # format enterprise_url to look like DC=castle,DC=os
     split_strs = enterprise_url.split(".");
     new_ldap_domain = ("DC=" + ",DC=".join(split_strs))
+    domain=obj['node']['domain']
 
     cmd=(
             "sudo systemctl stop jetty apache2;" +
             "sudo sed -i 's/^idp.authn.LDAP.bindDNCredential.*/idp.authn.LDAP.bindDNCredential={}/' /opt/shibboleth-idp/credentials/secrets.properties ; ".format(domain_admin_pass) + 
-            "sudo sed -i 's/CN=Users,DC=castle,DC=castle,DC=os/CN=Users,DC=castle,{}/' /opt/shibboleth-idp/conf/ldap.properties; ".format(new_ldap_domain) +
+            "sudo sed -i 's/^idp.authn.LDAP.bindDN.*/idp.authn.LDAP.bindDN= adminsitrator@{}.{}/' /opt/shibboleth-idp/conf/ldap.properties; ".format(domain,enterprise_url) + 
+            "sudo sed -i 's/^idp.authn.LDAP.dnFormat.*/idp.authn.LDAP.dnFormat= %s@{}.{}/' /opt/shibboleth-idp/conf/ldap.properties; ".format(domain,enterprise_url) + 
+            "sudo sed -i 's/CN=Users,DC=castle,DC=castle,DC=os/CN=Users,DC={},{}/' /opt/shibboleth-idp/conf/ldap.properties; ".format(domain,new_ldap_domain) +
             "if [[ -e /etc/ssl/certs/identity.castle.os.crt  ]]; then " +
                 "sudo sed -i 's/castle.os/{}/g' /opt/shibboleth-idp/conf/idp.properties /opt/shibboleth-idp/conf/attribute-resolver.xml /opt/shibboleth-idp/conf/ldap.properties /etc/apache2/sites-available/identity.castle.os.conf /opt/shibboleth-idp/metadata/idp-metadata.xml /opt/shibboleth-idp/metadata/moodle-md.xml /opt/shibboleth-idp/metadata/sp-metadata.xml ; ".format(enterprise_url) +
                 "sudo mv /var/www/html/identity.castle.os /var/www/html/identity.{} ; ".format(enterprise_url) +
@@ -45,11 +48,12 @@ def setup_moodle_sp(obj):
     enterprise_url=cloud_config['enterprise_url']
     domain_admin_pass=leader['admin_pass']
     user="ubuntu"
+    domain=obj['node']['domain']
 
     ldap_path="dc1."+enterprise_url+";dc2."+enterprise_url
     split_strs = enterprise_url.split(".");
     new_ldap_domain = ("DC=" + ",DC=".join(split_strs))
-    bind_dn = "CN=Administrator,CN=Users,DC=castle," + new_ldap_domain
+    bind_dn = "CN=Administrator,CN=Users,DC={},{}".format(domain,new_ldap_domain)
     contexts = "dc=castle," + new_ldap_domain.lower()
 
     cmd=(

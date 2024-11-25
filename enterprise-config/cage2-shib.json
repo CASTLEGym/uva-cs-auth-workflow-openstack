@@ -4,105 +4,105 @@
 		{ 
 			"name": "dc1",
 			"os": "win2k22",
-			"domain": "castle",
+			"domain": "casdom",
 			"roles": [ "domain_controller_leader", "windows" ]
 		},
 		{
 			"name": "dc2" ,
 			"os": "win2k22",
-			"domain": "castle",
+			"domain": "casdom",
 			"roles": [ "domain_controller", "windows" ]
 		},
 		{
 			"name": "identity",
 			"os": "Jammy-IdP",
-			"domain": "castle",
+			"domain": "casdom",
 			"roles": [ "idp", "linux" ]
 		},
 		{
 			"name": "service" ,
 			"os": "Jammy-SP",
-			"domain": "castle",
+			"domain": "casdom",
 			"roles": [ "sp", "linux" ]
 		},
 		{
 			"name": "user0",
 			"os": "jammy",
-			"domain": "castle",
+			"domain": "casdom",
 			"roles": [ "endpoint", "linux", "personal" ],
 			"user": "standard user"
 		},
 		{
 			"name": "user1",
 			"os": "jammy",
-			"domain": "castle",
+			"domain": "casdom",
 			"roles": [ "endpoint", "linux", "personal" ],
 			"user": "standard user"
 		},
 		{
 			"name": "user2",
 			"os": "jammy",
-			"domain": "castle",
+			"domain": "casdom",
 			"roles": [ "endpoint", "linux", "personal" ],
 			"user": "standard user"
 		},
 		{
 			"name": "user3",
 			"os": "jammy",
-			"domain": "castle",
+			"domain": "casdom",
 			"roles": [ "endpoint", "linux", "personal" ],
 			"user": "standard user"
 		},
 		{
 			"name": "user4",
 			"os": "jammy",
-			"domain": "castle",
+			"domain": "casdom",
 			"roles": [ "endpoint", "linux", "personal" ],
 			"user": "standard user"
 		},
 		{
 			"name": "op_host0",
 			"os": "jammy",
-			"domain": "castle",
+			"domain": "casdom",
 			"roles": [ "endpoint", "linux", "personal" ],
 			"user": "standard user"
 		},
 		{
 			"name": "op_host1",
 			"os": "jammy",
-			"domain": "castle",
+			"domain": "casdom",
 			"roles": [ "endpoint", "linux", "personal" ],
 			"user": "standard user"
 		},
 		{
 			"name": "op_host2",
 			"os": "jammy",
-			"domain": "castle",
+			"domain": "casdom",
 			"roles": [ "endpoint", "linux", "personal" ],
 			"user": "standard user"
 		},
 		{
 			"name": "enterprise0",
 			"os": "jammy",
-			"domain": "castle",
+			"domain": "casdom",
 			"roles": [ "endpoint", "linux", "shared" ]
 		},
 		{
 			"name": "enterprise1",
 			"os": "jammy",
-			"domain": "castle",
+			"domain": "casdom",
 			"roles": [ "endpoint", "linux", "shared" ]
 		},
 		{
 			"name": "enterprise2",
 			"os": "jammy",
-			"domain": "castle",
+			"domain": "casdom",
 			"roles": [ "endpoint", "linux", "shared" ]
 		},
 		{
 			"name": "op_server0",
 			"os": "jammy",
-			"domain": "castle",
+			"domain": "casdom",
 			"roles": [ "endpoint", "linux", "shared" ]
 		}
 	]
