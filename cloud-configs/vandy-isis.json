@@ -7,9 +7,9 @@
 	"image_map":
 	{
 		"win2k22": "ws20221",
-		"jammy": "VelociraptorClientImageUpdate8",
-		"Jammy-IdP": "jammy-idp",
-		"Jammy-SP": "jammy-sp",
+		"jammy": "VelociraptorClientImageUpdate9",
+		"Jammy-IdP": "jammy_idp",
+		"Jammy-SP": "jammy_sp",
 		"ubuntu": "Ubuntu22.04"
 
 	},
