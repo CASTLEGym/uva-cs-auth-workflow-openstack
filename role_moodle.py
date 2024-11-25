@@ -95,7 +95,7 @@ def setup_moodle_idp_part2 (obj):
 
     cmd=(
             "sudo systemctl stop jetty apache2;" +
-            "sudo wget --no-check-certificate -O /opt/shibboleth-idp/metadata/sp-metadata.xml http://service.{}/Shibboleth.sso/Metadata ;" .format(enterprise_url) +
+            "sudo wget --no-check-certificate -O /opt/shibboleth-idp/metadata/sp-metadata.xml http://10.0.0.20/Shibboleth.sso/Metadata ;" +
             "sudo sed -i 's/castle.os/{}/' /opt/shibboleth-idp/metadata/sp-metadata.xml ;" .format(enterprise_url) + 
             "sudo systemctl start jetty apache2" 
             )
