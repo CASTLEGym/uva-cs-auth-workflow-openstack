@@ -96,6 +96,8 @@ class OpenstackCloud:
         else:
             print(f"Zone \"{enterprise_url}\" exists.  Deleting and re-creating ...")
             self.designateClient.zones.delete(enterprise_url + ".")
+            while self.find_zone(enterprise_url) is not None:
+                time.sleep(5)
             self.designateClient.zones.create(f"{enterprise_url}.", email="root@" + enterprise_url)
 
         server_name_set = {x['name'].strip() for x in self.servers.values()}
@@ -337,7 +339,7 @@ class OpenstackCloud:
         for node in ret['nodes']:
             to_deploy_name = node['name']
             addresses = node['addresses']
-            address = addresses[-1]['addr']
+            address = addresses[0]['addr']
             print(f"Creating DNS zone {to_deploy_name}@{enterprise_url}/{address} ")
             try:
                 node['dns_setup'] = self.designateClient.recordsets.create(zone, to_deploy_name, 'A', [address])
