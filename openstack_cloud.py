@@ -92,7 +92,11 @@ class OpenstackCloud:
         zone = self.find_zone(enterprise_url)
         if zone is None:
             print(f"Zone does not exist. Creating: {enterprise_url}.")
-            self.designateClient.zones.create(enterprise_url + ".", email="root@" + enterprise_url)
+            self.designateClient.zones.create(f"{enterprise_url}.", email="root@" + enterprise_url)
+        else:
+            print(f"Zone \"{enterprise_url}\" exists.  Deleting and re-creating ...")
+            self.designateClient.zones.delete(enterprise_url + ".")
+            self.designateClient.zones.create(f"{enterprise_url}.", email="root@" + enterprise_url)
 
         server_name_set = {x['name'].strip() for x in self.servers.values()}
         deploy_name_set = {x['name'].strip() for x in enterprise['nodes']}
