@@ -366,7 +366,10 @@ def join_domain_linux(name, leader_admin_password, control_ipv4_addr, game_ipv4_
     shell = ShellHandler(control_ipv4_addr, 'ubuntu', None)
     stdout, stderr, exit_status = shell.execute_cmd(cmds, verbose=verbose)
 
-    shell.execute_cmd("sudo reboot now", verbose=verbose)
+    try:
+        shell.execute_cmd("sudo reboot now", verbose=verbose)
+    except:
+        pass
 
     print(
         f"  Waiting for reboot of {name} linux domain member with ip={control_ipv4_addr}(Expect socket closed by peer messages).")

@@ -31,8 +31,16 @@ class OpenstackCloud:
     def get_session(self):
         options = argparse.ArgumentParser(description='Awesome OpenStack App')
         self.conn = openstack.connect(options=options, verify=False)
-        project = self.conn.get_project(self.project_id)
-        self.project_name = project.name
+
+        # use the env. for project name if it exists, else query  it.
+        # self.project_name = os.environ.get('OS_PROJECT_NAME')
+        if self.project_name is None:
+
+            # caution, this may 
+            project = self.conn.identity.get_project(self.project_id)
+            self.project_name = project.name
+
+
         self.enterprise_url = f"{self.project_name}.os"
 
         self.cloud_config['enterprise_url'] = self.enterprise_url
