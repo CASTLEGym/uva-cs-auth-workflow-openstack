@@ -24,7 +24,7 @@ Shibboleth and Moodle will not work without the proper DNS resolution.
 Then, you can deploy and configure an enterprise:
 
 ```
-$ ./deploy-nodes.py cloud-config.json enterprise-tiny.json
+$ ./deploy-nodes.py -c cloud-config.json -e enterprise-tiny.json
 $ ./post-deploy-nodes.py deploy-output.json
 ```
 
@@ -32,20 +32,29 @@ This deploys the infrastructure, setups up domain controllers, etc.  Output is w
 These files needs to be passed to later stages.
 If `post-deploy-nodes.py` fails,  it is OK to re-run and see if the failure was temporary (e.g., a remote repository being unavailable or a network interference issue).
 
-Some sample enterprises are included.  See [`enterprise.md`](./enterprise/enterprise.md) for more details about these
+Some sample enterprises are included.  See [`enterprise.md`](./enterprise-configs/enterprise.md) for more details about these
 files and how to create your own.
 
 Sample cloud configurations are included (e.g., `mtx.json` and `shen.json`).  These are for
 two Openstack deployments at UVA.  While this is setup to support any cloud infrastructure to deploy an enterprise,
-only Openstack is currently supported.  See [`cloud-config.md`](./cloud-config/cloud-config.md) for more details about writing
+only Openstack is currently supported.  See [`cloud-config.md`](./cloud-configs/cloud-config.md) for more details about writing
 your own configuration.
+
+To sanity check that your ssh keys and DNS are configured properly, you should be able to ping the various machines setup in your cloud config and enterprise config files, as well as ssh without a password into Linux VMs. 
+
+For example, if the `enterprise_url` field in your cloud config is `castle.os`, and you have a Linux machine named `linep1` in your enterprise config,
+you should be able to:
+
+1. `ping linep1.castle.os`
+2. `nslookup <name>.castle.os` # where *name* is any machine name defined in your enterprise config file
+3. `ssh ubuntu@linep1.castle.os`
 
 ### Simulation
 
 Next, you can generate logins for the deployed infrastrcuture:
 
 ```
-$ ./simulate-logins.py  user-roles.json enterprise-tiny.json
+$ ./simulate-logins.py  user-roles/user-roles.json enterprise-configs/enterprise-tiny.json
 ```
 
 This generates users and estimates a login behavior for these users based on settings in the enterprise.json file
@@ -56,7 +65,7 @@ Output is written to logins.json, used in later stages.
 If you also want to emulate logins (next section), you will also need to install users into the enterprise.  You can do that by adding the enterprise description created when deploying the enterprise to the `simulate-logins` command.
 
 ```
-$ ./simulate-logins.py  user-roles/user-roles.json enterprise-config/web-wf.json post-deploy-output.json
+$ ./simulate-logins.py  user-roles/user-roles.json enterprise-configs/web-wf.json post-deploy-output.json
 ```
 
 
@@ -74,6 +83,11 @@ If you want to do "fast" emulation for debugging, you can add the ``--fast-debug
 $ python -u ./emulate-logins.py  post-deploy-output.json logins.json  --fast-debug 2>&1 |tee workflow.log
 ```
 
+If you want to specify a seed for more deterministic emulation results:
+
+```
+$ python -u ./emulate-logins.py  post-deploy-output.json logins.json  --fast-debug --seed 42 2>&1 |tee workflow.log
+```
 
 
 ### Cleanup
@@ -295,4 +309,61 @@ Almost all input/output from remote machines is captured to the output file of e
 You can load the output file into any JSON viewer (recommend something like Firefox)
 and browse to output for each step.  These outputs can help diagnose connection issues,
 etc.
+
+# Collecting Metrics
+After you run a workflow (and assuming you re-directed output to `workflow.log`), you can compute availability metrics:
+
+```
+./compute_metrics.sh workflow.log
+```
+
+The output should look like:
+
+```
+=== Metrics for ssh linux
+SSH-linux: availability=1.0000
+SSH-linux: num_started=5
+SSH-linux: num_success=4
+SSH-linux: num_err=0
+
+=== Metrics for ssh windows
+SSH-windows: availability=1.0000
+SSH-windows: num_started=2
+SSH-windows: num_success=2
+SSH-windows: num_err=0
+
+=== Metrics for ssh windows and linux
+SSH: availability=1.0000
+SSH: num_started=7
+SSH: num_success=6
+SSH: num_err=0
+
+=== Metrics for Moodle
+Workflow Moodle: availability=.8000
+Workflow Moodle: num_started=5
+Workflow Moodle: num_success=4
+Workflow Moodle: num_err=1
+
+=== Metrics for Moodle by steps
+Workflow Moodle steps: availability=.9642
+Workflow Moodle steps: num_started=28
+Workflow Moodle steps: num_success=27
+Workflow Moodle steps: num_err=0
+```
+
+## Computing additional metrics
+Workflow statistics are emitted as the emulation runs. They are of the form: 
+
+```
+{"timestamp": "2024-12-13T16:38:52.048017", "workflow_name": "Moodle", "status": "start", "message": "Starting step BrowseCourse:CGC", "hostname": "linep1", "pid": 13828, "step_name": "BrowseCourse:CGC"}
+{"timestamp": "2024-12-13T16:38:55.035040", "workflow_name": "Moodle", "status": "start", "message": "Starting step BrowseCourse:MoodlePDF", "hostname": "linep1", "pid": 13828, "step_name": "BrowseCourse:MoodlePDF"}
+{"timestamp": "2024-12-13T16:38:59.042169", "workflow_name": "Moodle", "status": "success", "message": "Step BrowseCourse:MoodlePDF successful", "hostname": "linep1", "pid": 13828, "step_name": "BrowseCourse:MoodlePDF"}
+{"timestamp": "2024-12-13T16:39:05.555751", "workflow_name": "Moodle", "status": "success", "message": "Step BrowseCourse:CGC successful", "hostname": "linep1", "pid": 13828, "step_name": "BrowseCourse:CGC"}
+{"timestamp": "2024-12-13T16:39:05.557954", "workflow_name": "Moodle", "status": "start", "message": "Starting step BrowseCourse:RAMPART", "hostname": "linep1", "pid": 13828, "step_name": "BrowseCourse:RAMPART"}
+{"timestamp": "2024-12-13T16:39:08.408369", "workflow_name": "Moodle", "status": "success", "message": "Step BrowseCourse:RAMPART successful", "hostname": "linep1", "pid": 13828, "step_name": "BrowseCourse:RAMPART"}
+```
+
+There are two kinds of stats collected: (1) workflow-level, (2) workflow but at the step level. The step-level workflows have a `step_name` defined, whereas the workflow level stats do not.
+
+To go beyond the availability metrics reported by `compute_metrics.sh`, highly recommend to write a python program to ingest all the JSON-formatted stats in the log file, e.g., in `workflow.log`
 

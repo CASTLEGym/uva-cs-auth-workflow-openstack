@@ -1,7 +1,7 @@
 {
 	"cloud_type": "openstack",
 	"os_env_file":	"/home/jdh8d/openstack-bundles/stable/openstack-base/openrc",
-	"private_key_file":	"/home/jdh8d/.ssh/id_rsa",
+	"private_key_file":	"/home/ubuntu/.ssh/id_rsa",
 	"external_network": "24534eee-6796-4354-b653-6d9377a1fbd0",
 	"keypair": "jdhKeyPair",
 	"image_map":

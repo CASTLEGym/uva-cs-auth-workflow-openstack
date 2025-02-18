@@ -16,7 +16,10 @@ class OpenstackCloud:
     def __init__(self, cloud_config):
         self.cloud_config = cloud_config
         self.conn = None
+        self.network_name = None
         self.project_id = os.environ.get('OS_PROJECT_ID')
+        self.project_name = None
+        self.enterprise_url = None
 
         self.sess = self.get_session()
         self.nova_sess = nova_client.Client(version=2.4, session=self.sess)
@@ -27,7 +30,12 @@ class OpenstackCloud:
 
     def get_session(self):
         options = argparse.ArgumentParser(description='Awesome OpenStack App')
-        self.conn = openstack.connect(options=options)
+        self.conn = openstack.connect(options=options, verify=False)
+        project = self.conn.get_project(self.project_id)
+        self.project_name = project.name
+        self.enterprise_url = f"{self.project_name}.os"
+
+        self.cloud_config['enterprise_url'] = self.enterprise_url
 
         """Return keystone session"""
 
@@ -47,7 +55,7 @@ class OpenstackCloud:
 
         # Create OpenStack keystoneauth1 session.
         # https://goo.gl/BE7YMt
-        sess = session.Session(auth=auth, verify=os.environ.get('OS_CACERT'))
+        sess = session.Session(auth=auth, verify=False)
 
         return sess
 
@@ -64,18 +72,17 @@ class OpenstackCloud:
             servers[server.human_id] = server_dict
         return servers
 
-    def find_zone(self, enterprise_url):
+    def find_zone(self):
         zones = self.designateClient.zones.list()
         for zone in zones:
-            if zone['name'] == (enterprise_url+'.'):
+            if zone['name'] == f"{self.enterprise_url}.":
                 return zone
         return None
 
     def check_deploy_ok(self, enterprise):
-        enterprise_url = self.cloud_config['enterprise_url']
-        zone = self.find_zone(enterprise_url)
+        zone = self.find_zone()
         if zone is not None:
-            print(f"Zone already exists: {enterprise_url}.")
+            print(f"Zone already exists: {self.enterprise_url}.")
             return False
 
         server_name_set = {x['name'].strip() for x in self.servers.values()}
@@ -88,17 +95,16 @@ class OpenstackCloud:
         return True
 
     def query_deploy_ok(self, enterprise):
-        enterprise_url = self.cloud_config['enterprise_url']
-        zone = self.find_zone(enterprise_url)
+        zone = self.find_zone()
         if zone is None:
-            print(f"Zone does not exist. Creating: {enterprise_url}.")
-            self.designateClient.zones.create(f"{enterprise_url}.", email="root@" + enterprise_url)
+            print(f"Zone does not exist. Creating: {self.enterprise_url}.")
+            self.designateClient.zones.create(f"{self.enterprise_url}.", email="root@" + self.enterprise_url)
         else:
-            print(f"Zone \"{enterprise_url}\" exists.  Deleting and re-creating ...")
-            self.designateClient.zones.delete(enterprise_url + ".")
-            while self.find_zone(enterprise_url) is not None:
+            print(f"Zone \"{self.enterprise_url}\" exists.  Deleting and re-creating ...")
+            self.designateClient.zones.delete(self.enterprise_url + ".")
+            while self.find_zone() is not None:
                 time.sleep(5)
-            self.designateClient.zones.create(f"{enterprise_url}.", email="root@" + enterprise_url)
+            self.designateClient.zones.create(f"{self.enterprise_url}.", email="root@" + self.enterprise_url)
 
         server_name_set = {x['name'].strip() for x in self.servers.values()}
         deploy_name_set = {x['name'].strip() for x in enterprise['nodes']}
@@ -133,14 +139,40 @@ class OpenstackCloud:
         print("  Found image id: " + found_image['id'])
         return found_image
 
+    def get_network_id(self, network_name):
+        project = self.conn.identity.find_project(self.project_id)
+        project_name = project.name
+
+        stack_resource_map = {
+            stack.name: list(self.conn.orchestration.resources(stack.name)) for stack in self.conn.list_stacks()
+            if stack.location.project.id == self.project_id and stack.name.startswith(f"{project_name}_")
+        }
+
+        network_id_list = [
+            resource.physical_resource_id
+            for resource_list in stack_resource_map.values()
+            for resource in resource_list
+            if resource.id == network_name
+        ]
+
+        result = network_id_list[0] if len(network_id_list) > 0 else None
+        # try to find a network outside the stack list if it might be a public network.
+        if result is None:
+            result = self.conn.get_network_by_id(network_name)
+        if result is None:
+            result = self.conn.find_network(network_name)
+
+        return result
+
     def find_network_by_name(self, name):
-        ret = self.neutronClient.list_networks(name=name, project_id=self.sess.auth.project_id)
+        ret = self.neutronClient.list_networks()
         networks = ret['networks']
         found_network = None
         for network in networks:
-            if network['name'] == name and found_network is None:
+            found = network['id'] == name or network['name'] == name
+            if found and found_network is None:
                 found_network = network
-            elif network['name'] == name and found_network is not None:
+            elif found and found_network is not None:
                 str_value = f"Duplicate networks named {name}"
                 raise NameError(str_value)
         if found_network is None:
@@ -169,9 +201,9 @@ class OpenstackCloud:
             flavor = self.size_to_flavor(size)
             security_group = self.cloud_config['security_group']
             all_groups = self.conn.list_security_groups()
-            project_groups = [x for x in all_groups if x.location.project.id == self.project_id and x.name == security_group]
+            project_groups = [x for x in all_groups if x.name == security_group or x.id == security_group]
             if not len(project_groups) == 1:
-                errstr = "Found 0 or more than 1 security groups called " + security_group + "\n" + str(all_groups)
+                errstr = "Found 0 or more than 1 security groups called " + security_group + "\n" + str(project_groups)
                 raise RuntimeError(errstr)
 
             network = node.get('network', self.cloud_config['external_network'])
@@ -179,6 +211,7 @@ class OpenstackCloud:
             nova_image = self.find_image_by_name(image)
             # nova_flavor = self.nova_sess.flavors.find(name=flavor)
             nova_net = self.find_network_by_name(network)
+            self.network_name = nova_net['name']
             nova_nics = [{'net-id': nova_net['id']}]
             nova_instance = self.conn.create_server(
                 name=name,
@@ -232,17 +265,24 @@ class OpenstackCloud:
             flavor = self.size_to_flavor(size)
             security_group = self.cloud_config['security_group']
             all_groups = self.conn.list_security_groups()
-            project_groups = [x for x in all_groups if x.location.project.id == self.project_id and x.name == security_group]
+            project_groups = [
+                x for x in all_groups
+                if (x.location.project.id == self.project_id and x.name == security_group) or x.id == security_group
+            ]
             if not len(project_groups) == 1:
                 errstr = "Found 0 or more than 1 security groups called " + security_group + "\n" + str(all_groups)
                 raise RuntimeError(errstr)
 
-            network = node.get('network', self.cloud_config['external_network'])
+            network_name = node.get('network', self.cloud_config['external_network'])
 
             nova_image = self.find_image_by_name(image)
             # nova_flavor = self.nova_sess.flavors.find(name=flavor)
-            nova_net = self.find_network_by_name(network)
-            nova_nics = [{'net-id': nova_net['id']}]
+
+            network_id = self.get_network_id(network_name)
+            if network_id is None:
+                raise Exception(f"Could not find network id for \"{network_name}\" network.")
+
+            nova_nics = [{'net-id': network_id}]
             nova_instance = self.servers[name]
             print("  Server " + name + " has id " + nova_instance['id'])
             # print(dir(nova_instance))
@@ -254,7 +294,7 @@ class OpenstackCloud:
                 'domain': domain,
                 'image': image,
                 'security_group': security_group,
-                'network': network,
+                'network': network_name,
                 'keypair': keypair,
                 'nova_image': nova_image,
                 'nova_nics': nova_nics,
@@ -275,7 +315,7 @@ class OpenstackCloud:
                 waiting = False
                 for node in ret['nodes']:
                     id_value = node['id']
-                    if not node['is_ready']: 
+                    if not node['is_ready']:
                         nova_instance = self.nova_sess.servers.get(id_value)
                         node['nova_status'] = nova_instance.status
                         if nova_instance.status == 'ACTIVE':
@@ -286,10 +326,10 @@ class OpenstackCloud:
                         else:
                             errstr = (
                                 f"Node {node['name']} is neither BUILDing or ACTIVE.  "
-                                "Assuming error has occured.  Exiting...."
+                                "Assuming error has occurred.  Exiting...."
                             )
                             raise RuntimeError(errstr)
-            except Exception as _:
+            except Exception as _:   # noqa: F841
                 pass
 
         print('All nodes are ready')
@@ -297,16 +337,27 @@ class OpenstackCloud:
         return ret
 
     def collect_info(self, enterprise, enterprise_built):
-        network = self.cloud_config['external_network']
         ret = enterprise_built
         for node in enterprise_built['nodes']:
             id_value = node['id']
             name = node['name']
             enterprise_node = next(filter(lambda x: name == x['name'], enterprise['nodes']))
             nova_instance = self.nova_sess.servers.get(id_value)
-            node['addresses'] = [x[0] for x in nova_instance.addresses.values()]
+            print(f"Addresses = {nova_instance.addresses}")
+            network_name = self.cloud_config['external_network']
 
-            if 'windows' not in enterprise_node['roles']: 
+            address_list = []
+            for key, value in nova_instance.addresses.items():
+
+                new_value = [address for address in value if address['OS-EXT-IPS:type'] == 'fixed']
+                if key == network_name:
+                    address_list.insert(0, new_value[0])
+                else:
+                    address_list.append(new_value[0])
+
+            node['addresses'] = address_list
+
+            if 'windows' not in enterprise_node['roles']:
                 print("Skipping password retrieve for non-windows node " + name)
                 continue
             while True:
@@ -321,29 +372,31 @@ class OpenstackCloud:
         return ret
 
     def create_zones(self, ret):
-        enterprise_url = self.cloud_config['enterprise_url']
-        print("Creating DNS zone " + enterprise_url)
-        ret['create_zones'] = self.designateClient.zones.create(enterprise_url+".", email="root@"+enterprise_url, ttl=60)
+        print("Creating DNS zone " + self.enterprise_url)
+        ret['create_zones'] = \
+            self.designateClient.zones.create(self.enterprise_url+".", email="root@"+self.enterprise_url, ttl=60)
         return ret
 
     def query_zones(self, ret):
-        enterprise_url = self.cloud_config['enterprise_url']
-        print("Querying DNS zone " + enterprise_url)
-        ret['create_zones'] = self.designateClient.zones.get(enterprise_url + ".")
+        print("Querying DNS zone " + self.enterprise_url)
+        ret['create_zones'] = self.designateClient.zones.get(f"{self.enterprise_url}.")
         return ret
 
     def create_dns_names(self, ret):
-        enterprise_url = self.cloud_config['enterprise_url']
         zone = ret['create_zones']['id']
 
         for node in ret['nodes']:
             to_deploy_name = node['name']
             addresses = node['addresses']
-            address = addresses[0]['addr']
-            print(f"Creating DNS zone {to_deploy_name}@{enterprise_url}/{address} ")
+
+            # The DNS records must contain the GAME addresses (if they exist).
+            # Otherwise, any time an end point tries to refer to the node, it will use
+            # The control address, and send all the data over the control network.
+            address = addresses[-1]['addr']
+            print(f"Creating DNS zone {to_deploy_name}.{self.enterprise_url} = {address} ")
             try:
                 node['dns_setup'] = self.designateClient.recordsets.create(zone, to_deploy_name, 'A', [address])
-            except designate_client.exceptions.Conflict as c:
+            except designate_client.exceptions.Conflict as _:  # noqa: F841
                 print(f"WARNING:  already a DNS record for {to_deploy_name}")
         return ret
 
@@ -371,8 +424,7 @@ class OpenstackCloud:
         return ret
 
     def cleanup_enterprise(self, enterprise):
-        enterprise_url = self.cloud_config['enterprise_url']
-        zone = self.find_zone(enterprise_url)
+        zone = self.find_zone()
         if zone is not None:
             self.designateClient.zones.delete(zone['id'])
 

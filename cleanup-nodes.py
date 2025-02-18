@@ -14,20 +14,22 @@ def load_output(output_filename):
 
     return output
 
-def cleanup_enterprise(cloud_config,enterprise):
+
+def cleanup_enterprise(cloud_config, enterprise):
     ret = {}
-    ret["cleanup_start"] = str(datetime.now());
+    ret["cleanup_start"] = str(datetime.now())
     match cloud_config['cloud_type'].lower():
         case 'openstack':
-           print("Using openstack cloud") 
-           cloud =  OpenstackCloud(cloud_config)
+            print("Using openstack cloud")
+            cloud = OpenstackCloud(cloud_config)
         case _:
             print("Cannot find cloud type: " + cloud_config['cloud_type'])
 
     ret['cleanup'] = cloud.cleanup_enterprise(enterprise)
 
-    ret["cleanup_end"] = str(datetime.now());
+    ret["cleanup_end"] = str(datetime.now())
     return ret
+
 
 def main():
 
@@ -42,19 +44,18 @@ def main():
     json_output["cleanup_start_time"] = str(datetime.now())
 
     print("Cleaning up nodes.")
-    cleanup_results = cleanup_enterprise(cloud_config,enterprise)
+    cleanup_results = cleanup_enterprise(cloud_config, enterprise)
     print("Cleaning up, completed.")
 
-    json_output['cleanup_results'] = cleanup_results;
+    json_output['cleanup_results'] = cleanup_results
     json_output["cleanup_end_time"] = str(datetime.now())
 
     print("Enterprise cleaned.  Writing output to cleanup-output.json.")
     with open("cleanup-output.json", "w") as f:
-        json.dump(json_output,f)
+        json.dump(json_output, f)
 
     return
 
 
 if __name__ == '__main__':
     main()
-

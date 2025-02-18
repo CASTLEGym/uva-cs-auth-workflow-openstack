@@ -7,6 +7,9 @@ import json
 from datetime import datetime
 from openstack_cloud import OpenstackCloud
 
+import urllib3
+urllib3.disable_warnings()
+
 
 def load_configs(cloud_config_filename, enterprise_filename):
     with open(cloud_config_filename) as f:
@@ -36,8 +39,7 @@ def deploy_enterprise(cloud_config, enterprise):
 
 
 def query_enterprise(cloud_config, enterprise):
-    ret = {}
-    ret["deploy_start"] = str(datetime.now())
+    ret = {"deploy_start": str(datetime.now())}
     match cloud_config['cloud_type'].lower():
         case 'openstack':
             print("Using openstack cloud")
@@ -82,7 +84,7 @@ def main():
 
         print("Deploying nodes.")
         enterprise_built = query_enterprise(cloud_config, enterprise_config) if args.query_only \
-                else deploy_enterprise(cloud_config, enterprise_config)
+            else deploy_enterprise(cloud_config, enterprise_config)
 
         print("Deploying nodes, completed.")
 
@@ -93,7 +95,7 @@ def main():
         json_output["deploy_end_time"] = str(datetime.now())
 
         print("Enterprise built.  Writing output to deploy-output.json.")
-    except Exception as _:
+    except Exception as _:   # noqa: F841
         traceback.print_exc()
         print("Exception occured while setting up enterprise.  Dumping results to deploy-output.json anyhow.")
 

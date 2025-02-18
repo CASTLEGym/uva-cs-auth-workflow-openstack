@@ -8,6 +8,7 @@ import role_register
 import role_domains
 import role_human
 import role_moodle
+import argparse
 from datetime import datetime
 from joblib import Parallel, delayed
 
@@ -40,10 +41,12 @@ def extract_creds(enterprise_built, name):
     return control_ipv4_addr, game_ipv4_addr, password
 
 
-def register_windows(enterprise, enterprise_built):
+def register_windows(enterprise, enterprise_built, only):
     ret = {}
     access_list = []
     windows_nodes = list(filter(lambda x: 'windows' in x['roles'], enterprise['nodes']))
+    windows_nodes = [x for x in windows_nodes if only is None or x['name'] in only]
+    print(only)
     for node in windows_nodes:
         name = node['name']
         print("  Registering windows on " + name)
@@ -65,10 +68,11 @@ def register_windows(enterprise, enterprise_built):
     return ret
 
 
-def join_domains(cloud_config, enterprise, enterprise_built):
+def join_domains(cloud_config, enterprise, enterprise_built, only):
     ret = {}
     access_list = []
     nodes = list(filter(lambda x: 'endpoint' in x['roles'], enterprise['nodes']))
+    nodes = [x for x in nodes if only is None or x['name'] in only]
     leader_details = enterprise_built['setup']['setup_domains']['domain_leaders']
     for node in nodes:
         name = node['name']
@@ -98,24 +102,25 @@ def join_domains(cloud_config, enterprise, enterprise_built):
             results.append(role_domains.join_domain(access))
 
     ret['join_domains'] = results
-        
+
     return ret
 
 
-def deploy_human(cloud_config, enterprise, enterprise_built):
+def deploy_human(cloud_config, enterprise, enterprise_built, only):
     ret = {}
     access_list = []
     nodes = enterprise['nodes']
+    nodes = [x for x in nodes if only is None or x['name'] in only]
     results = []
     for node in nodes:
         name = node['name']
         control_ipv4_addr, game_ipv4_addr, password = extract_creds(enterprise_built, name)
         access_list.append({
-            "node": node, 
-            "control_addr": control_ipv4_addr, 
-            "cloud_config": cloud_config, 
-            "game_addr": game_ipv4_addr, 
-            "password": str(password) 
+            "node": node,
+            "control_addr": control_ipv4_addr,
+            "cloud_config": cloud_config,
+            "game_addr": game_ipv4_addr,
+            "password": str(password)
         })
 
     if use_parallel:
@@ -128,14 +133,15 @@ def deploy_human(cloud_config, enterprise, enterprise_built):
             results.append(role_human.deploy_human(access))
 
     ret['setup_human'] = results
-        
+
     return ret
 
 
-def setup_moodle_idps(cloud_config, enterprise, enterprise_built):
+def setup_moodle_idps(cloud_config, enterprise, enterprise_built, only):
     ret = {}
     access_list = []
     idps = list(filter(lambda x: 'idp' in x['roles'], enterprise['nodes']))
+    idps = [x for x in idps if only is None or x['name'] in only]
     leader_details = enterprise_built['setup']['setup_domains']['domain_leaders']
     for node in idps:
         name = node['name']
@@ -146,12 +152,12 @@ def setup_moodle_idps(cloud_config, enterprise, enterprise_built):
         print("Configuring IDP against domain on " + name)
         control_ipv4_addr, game_ipv4_addr, password = extract_creds(enterprise_built, name)
         access_list.append({
-            "node": node, 
-            "cloud_config": cloud_config, 
-            "domain_leader": leader_details[domain], 
-            "control_addr": control_ipv4_addr, 
-            "game_addr": game_ipv4_addr, 
-            "password": str(password) 
+            "node": node,
+            "cloud_config": cloud_config,
+            "domain_leader": leader_details[domain],
+            "control_addr": control_ipv4_addr,
+            "game_addr": game_ipv4_addr,
+            "password": str(password)
         })
 
     results = []
@@ -165,14 +171,15 @@ def setup_moodle_idps(cloud_config, enterprise, enterprise_built):
             results.append(role_moodle.setup_moodle_idp(access))
 
     ret['setup_moodle_idp'] = results
-        
+
     return ret
 
 
-def setup_moodle_sps(cloud_config, enterprise, enterprise_built):
+def setup_moodle_sps(cloud_config, enterprise, enterprise_built, only):
     ret = {}
     access_list = []
     sps = list(filter(lambda x: 'sp' in x['roles'], enterprise['nodes']))
+    sps = [x for x in sps if only is None or x['name'] in only]
     leader_details = enterprise_built['setup']['setup_domains']['domain_leaders']
     for node in sps:
         name = node['name']
@@ -183,12 +190,12 @@ def setup_moodle_sps(cloud_config, enterprise, enterprise_built):
         print("Configuring SP against domain on " + name)
         control_ipv4_addr, game_ipv4_addr, password = extract_creds(enterprise_built, name)
         access_list.append({
-            "node": node, 
-            "domain_leader": leader_details[domain], 
-            "cloud_config": cloud_config, 
-            "control_addr": control_ipv4_addr, 
-            "game_addr": game_ipv4_addr, 
-            "password": str(password) 
+            "node": node,
+            "domain_leader": leader_details[domain],
+            "cloud_config": cloud_config,
+            "control_addr": control_ipv4_addr,
+            "game_addr": game_ipv4_addr,
+            "password": str(password)
         })
 
     results = []
@@ -202,14 +209,15 @@ def setup_moodle_sps(cloud_config, enterprise, enterprise_built):
             results.append(role_moodle.setup_moodle_sp(access))
 
     ret['setup_moodle_sp'] = results
-        
+
     return ret
 
 
-def setup_moodle_idps_part2(cloud_config, enterprise, enterprise_built):
+def setup_moodle_idps_part2(cloud_config, enterprise, enterprise_built, only):
     ret = {}
     access_list = []
     idps = list(filter(lambda x: 'idp' in x['roles'], enterprise['nodes']))
+    idps = [x for x in idps if only is None or x['name'] in only]
     leader_details = enterprise_built['setup']['setup_domains']['domain_leaders']
     for node in idps:
         name = node['name']
@@ -220,12 +228,12 @@ def setup_moodle_idps_part2(cloud_config, enterprise, enterprise_built):
         print("Configuring IDP against domain on " + name)
         control_ipv4_addr, game_ipv4_addr, password = extract_creds(enterprise_built, name)
         access_list.append({
-            "node": node, 
-            "cloud_config": cloud_config, 
-            "domain_leader": leader_details[domain], 
-            "control_addr": control_ipv4_addr, 
-            "game_addr": game_ipv4_addr, 
-            "password": str(password) 
+            "node": node,
+            "cloud_config": cloud_config,
+            "domain_leader": leader_details[domain],
+            "control_addr": control_ipv4_addr,
+            "game_addr": game_ipv4_addr,
+            "password": str(password)
         })
 
     results = []
@@ -239,22 +247,11 @@ def setup_moodle_idps_part2(cloud_config, enterprise, enterprise_built):
             results.append(role_moodle.setup_moodle_idp_part2(access))
 
     ret['setup_moodle_idp'] = results
-        
+
     return ret
 
 
-def setup_enterprise(cloud_config, to_build, built):
-    built['setup'] = {}
-    built['setup']['windows_register'] = register_windows(to_build, built)
-    built['setup']['setup_domains'] = deploy_domain_controllers(cloud_config, to_build, built)
-    built['setup']['join_domains'] = join_domains(cloud_config, to_build, built)
-    built['setup']['deploy_human'] = deploy_human(cloud_config, to_build, built)
-    built['setup']['setup_moodle_idps'] = setup_moodle_idps(cloud_config, to_build, built)
-    built['setup']['setup_moodle_sps'] = setup_moodle_sps(cloud_config, to_build, built)
-    built['setup']['setup_moodle_idps_part2'] = setup_moodle_idps_part2(cloud_config, to_build, built)
-
-
-def deploy_domain_controllers(cloud_config, enterprise, enterprise_built):
+def deploy_domain_controllers(cloud_config, enterprise, enterprise_built, only):
     ret = {}
     leaders = list(filter(lambda x: 'domain_controller_leader' in x['roles'], enterprise['nodes']))
     leader_details = {}
@@ -265,14 +262,17 @@ def deploy_domain_controllers(cloud_config, enterprise, enterprise_built):
         control_ipv4_addr, game_ipv4_addr, password = extract_creds(enterprise_built, name)
         # access_list.append({"name": name})
         # access_list.append({"name": name, "addr": ipv4_addr})
-        results = role_domains.deploy_forest(cloud_config, name, control_ipv4_addr, game_ipv4_addr, password, domain)
+        if only is None or name in only:
+            results = role_domains.deploy_forest(cloud_config, name, control_ipv4_addr, game_ipv4_addr, password, domain)
+        else:
+            results = {"msg": "skipping setup of domain controller leader as requested"}
         leader_details[domain] = {
             "name": str(name),
             "control_addr": [control_ipv4_addr],
             "game_addr": [game_ipv4_addr],
             "admin_pass": str(password)
         }
-        ret["forest_setup_"+name] = results
+        ret["forest_setup_" + name] = results
 
     followers = list(filter(lambda x: 'domain_controller' in x['roles'], enterprise['nodes']))
     for follower in followers:
@@ -280,26 +280,44 @@ def deploy_domain_controllers(cloud_config, enterprise, enterprise_built):
         name = follower['name']
         print("Setting up domain controller on " + name + ' for domain ' + domain)
         control_ipv4_addr, game_ipv4_addr, password = extract_creds(enterprise_built, name)
-        results = role_domains.add_domain_controller(
-            cloud_config, leader_details[domain], name, control_ipv4_addr, game_ipv4_addr, password, domain
-        )
+        if only is None or name in only:
+            results = role_domains.add_domain_controller(
+                cloud_config, leader_details[domain], name, control_ipv4_addr, game_ipv4_addr, password, domain
+            )
+        else:
+            results = {"msg": "skipping setup of domain controller follower as requested."}
+
         leader_details[domain]['control_addr'].append(control_ipv4_addr)
         leader_details[domain]['game_addr'].append(game_ipv4_addr)
-        ret["additional_dc_setup_"+name] = results
-        
-    ret["domain_leaders"] = leader_details    
+        ret["additional_dc_setup_" + name] = results
+
+    ret["domain_leaders"] = leader_details
     return ret
+
+
+def setup_enterprise(cloud_config, to_build, built, only):
+    built['setup'] = {}
+    built['setup']['windows_register'] = register_windows(to_build, built, only)
+    built['setup']['setup_domains'] = deploy_domain_controllers(cloud_config, to_build, built, only)
+    built['setup']['join_domains'] = join_domains(cloud_config, to_build, built, only)
+    built['setup']['deploy_human'] = deploy_human(cloud_config, to_build, built, only)
+    built['setup']['setup_moodle_idps'] = setup_moodle_idps(cloud_config, to_build, built, only)
+    built['setup']['setup_moodle_sps'] = setup_moodle_sps(cloud_config, to_build, built, only)
+    built['setup']['setup_moodle_idps_part2'] = setup_moodle_idps_part2(cloud_config, to_build, built, only)
 
 
 def main():
 
-    if len(sys.argv) != 2:
-        print("Usage:  " + sys.argv[0] + " deploy-output.json")
-        sys.exit(1)
+    # Create an ArgumentParser object
+    parser = argparse.ArgumentParser(description="A script to configure deployed machines.")
+    parser.add_argument("deploy_output", help="Path to the deploy-output.py file")
+    parser.add_argument("-o", "--only", action="append",
+                        help="Specify that not all nodes should be configured, only specified node (can be repeated).")
+    args = parser.parse_args()
 
     json_output = {}
     try:
-        setup_output_filename = sys.argv[1]
+        setup_output_filename = args.deploy_output
         setup_output = load_json(setup_output_filename)
 
         json_output = setup_output
@@ -311,7 +329,7 @@ def main():
 
         print("Setting up nodes.")
 
-        setup_enterprise(cloud_config, enterprise, enterprise_built)
+        setup_enterprise(cloud_config, enterprise, enterprise_built, args.only)
         print("Setting up nodes, completed.")
 
         json_output['enterprise'] = enterprise
@@ -320,7 +338,7 @@ def main():
 
         print("Enterprise setup.  Writing output to post-deploy-output.json.")
 
-    except Exception as _:
+    except Exception as _:   # noqa: F841
         traceback.print_exc()
         print("Exception occured while setting up enterprise.  Dumping results to post-deploy-output.json anyhow.")
 
@@ -331,24 +349,4 @@ def main():
 
 
 if __name__ == '__main__':
-    # if args are passed, do main line.
-    # if len(sys.argv) != 1:
     sys.exit(main())
-
-
-#    # otherwise do development of next step.
-#    with open("output.json") as f:
-#        # Read the file
-#        output = json.load(f)
-#
-#    built=output['enterprise_built']
-#    to_build=output['enterprise_to_build']
-#    cloud_config=output['backend_config']
-#
-#    join_ret = join_domains(cloud_config,to_build,built)
-#
-#    output['enterprise_built']['setup']['join_domains'] = join_ret
-#
-#    with open("dev_output.json", "w") as f:
-#        json.dump(output,f)
-#

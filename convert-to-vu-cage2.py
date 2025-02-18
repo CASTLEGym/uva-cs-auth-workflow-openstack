@@ -5,36 +5,36 @@ import sys
 import os
 
 
-
 deploy_filename = 'deploy-output.json'
 
 global pd
 
 
-def update_ips(name,control_ip, game_ip):
+def update_ips(name, control_ip, game_ip):
     nodes = pd['enterprise_built']['deployed']['nodes']
     for idx, node in enumerate(nodes):
-        if node['name'] ==  name:
+        if node['name'] == name:
             print(f"Found {name}, updating IPs.")
-            #print(f"addresses = {pd['enterprise_built']['deployed']['nodes'][idx]['addresses']}")
-            pd['enterprise_built']['deployed']['nodes'][idx]['addresses'][0]['addr']=control_ip
-            pd['enterprise_built']['deployed']['nodes'][idx]['addresses'][1]['addr']=game_ip
+            # print(f"addresses = {pd['enterprise_built']['deployed']['nodes'][idx]['addresses']}")
+            pd['enterprise_built']['deployed']['nodes'][idx]['addresses'][0]['addr'] = control_ip
+            pd['enterprise_built']['deployed']['nodes'][idx]['addresses'][1]['addr'] = game_ip
             print(f"addresses  = {pd['enterprise_built']['deployed']['nodes'][idx]['addresses']}")
 
 
-def update_password(keyfile:str, nodename:str):
+def update_password(keyfile: str, nodename: str):
     nodes = pd['enterprise_built']['deployed']['nodes']
     for idx, node in enumerate(nodes):
-        if node['name'] ==  nodename:
+        if node['name'] == nodename:
             password = os.popen(f"nova get-password {nodename} {keyfile} 2> /dev/null").read()
             password = password.strip()
             print(f"Found {nodename}, updating password.")
-            pd['enterprise_built']['deployed']['nodes'][idx]['password']=password
+            pd['enterprise_built']['deployed']['nodes'][idx]['password'] = password
             print(f"password = '{pd['enterprise_built']['deployed']['nodes'][idx]['password']}'")
             print("Password updated")
-            return 
+            return
         print(f"Examining node {node['name']}")
     print(f"Could not find node with name {nodename}")
+
 
 def main():
     global pd
@@ -42,7 +42,7 @@ def main():
         print(f"usage: {sys.argv[0]} <castle-control key file>")
         return
 
-    keyfile=sys.argv[1]
+    keyfile = sys.argv[1]
 
     with open(deploy_filename) as f:
         # Read the file
@@ -71,9 +71,8 @@ def main():
     update_password(keyfile, 'dc1')
     update_password(keyfile, 'dc2')
 
-
     with open("deploy-output-vu-cage2.json", "w") as f:
-        json.dump(pd,f)
+        json.dump(pd, f)
 
 
 if __name__ == '__main__':

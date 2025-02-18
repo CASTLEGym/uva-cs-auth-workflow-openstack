@@ -1,0 +1,18 @@
+{
+	"cloud_type": "openstack",
+	"private_key_file": "/home/an7s/.ssh/id_rsa2",
+	"external_network": "ext_net",
+	"keypair": "an7sKeyPair2",
+	"image_map":
+	{
+		"win2k22": "ws2022-cs-license",
+		"jammy": "jammy-amd64"
+
+	},
+	"instance_size_map": 
+	{
+		"small": "m1.small"
+	},
+	"security_group": "All_Traffic",
+	"enterprise_url": "knight.os"
+}

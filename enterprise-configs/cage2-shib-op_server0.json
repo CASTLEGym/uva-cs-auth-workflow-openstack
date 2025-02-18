@@ -20,6 +20,12 @@
 			"roles": [ "idp", "linux" ]
 		},
 		{
+			"name": "op_server0",
+			"os": "Jammy-SP",
+			"domain": "castle",
+			"roles": [ "sp", "linux" ]
+		},
+		{
 			"name": "user0",
 			"os": "jammy",
 			"domain": "castle",
@@ -92,12 +98,6 @@
 			"os": "jammy",
 			"domain": "castle",
 			"roles": [ "endpoint", "linux", "shared" ]
-		},
-		{
-			"name": "op_server0",
-			"os": "jammy",
-			"domain": "castle",
-			"roles": [ "sp", "linux" ]
 		}
 	]
 }
